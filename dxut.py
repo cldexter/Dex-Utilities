@@ -16,6 +16,7 @@ import random
 import time
 import datetime
 from multiprocessing import Pool
+from colorama import init, Fore, Back, Style
 
 dict_agent = [
     "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; AcooBrowser; .NET CLR 1.1.4322; .NET CLR 2.0.50727)",
@@ -112,12 +113,23 @@ dict_floor_type = {
     u"低层": "L"
 }
 
+dict_color_code = {
+    "info":(Back.GREEN + Fore.BLACK),
+    "important":(Back.BLACK + Fore.WHITE),
+    "error":(Back.RED + Fore.LIGHTWHITE_EX),
+    "notice":(Back.YELLOW + Fore.BLACK),
+    "debug":(Back.LIGHTCYAN_EX + Fore.BLACK),
+    "time_stamp":(Back.LIGHTBLACK_EX + Fore.LIGHTWHITE_EX)
+}
+
 exp_email = "[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"  # 所有email地址
 exp_html = "</?\w+[^>]*>\s?"  # 所有html标签
 
+
+# client = MongoClient('mongodb://localhost:27017/') 
+
+
 # 关于网络
-
-
 def random_header():
     """随机返回一个header"""
     dict_header["User-Agent"] = random.choice(dict_agent)
@@ -190,7 +202,74 @@ def time_str_interval(earlier_time_str, later_time_str, time_unit="hour"):
     else:
         return "error"
 
+# 消息相关
+def msg(who, identifier, action, result, info_type, *args):
+    '''集中处理各种信息[log,info,stat,debug]'''
+    for fn in args:
+        fn(ut.time_str("full"), who, identifier, action, result, info_type)
 
+def log(who, identifier, action, result, info_type):
+    """记录日志"""
+    data = {"ctime": when, "who": who, "identifier": identifier, "action": action, "result": result, "info_type": info_type}
+    get_db('log').insert_one(data)
+
+
+def debug(who, identifier, action, result, info_type):
+    """用于调试"""
+    data = {"ctime": when, "who": who, "identifier": identifier, "what": result}
+    get_db('debug').insert_one(data)
+
+
+def info(when, who, identifier, action, result, info_type):
+    """用于显示"""
+    add_new_display(when, who, identifier, action, result, info_type)
+
+
+
+def stat(when, who, identifier, action, result, info_type):  # 用于统计的信息
+    if result == "succ":
+        if who == "index page":
+            stats.success_sum_page += 1
+        elif who == "record":
+            stats.success_record += 1
+        elif who == "pmid":
+            stats.success_pmid += 1
+            stats.c_skipped_pmid = 0
+        elif who == "task":
+            if result == "start":
+                stats.task_start = ut.time_str("full")
+            elif result == "finish":
+                stats.task_finish = ut.time_str("full")
+    elif result == "fail":
+        if who == "index page":
+            stats.failed_sum_page += 1
+        elif who == "record":
+            stats.failed_record += 1
+        elif who == "pmid":
+            stats.failed_pmid += 1
+    elif result == "proc":
+        if who == "index page":
+            stats.processed_sum_page += 1
+        elif who == "record":
+            stats.processed_record += 1
+        elif who == "pmid":
+            stats.processed_pmid += 1
+    elif result == "skip":
+        if who == "index page":
+            stats.skipped_sum_page += 1
+        elif who == "record":
+            stats.skipped_record += 1
+        elif who == "pmid":
+            stats.skipped_pmid += 1
+            stats.c_skipped_pmid += 1
+
+
+def get_db(data_type):
+    if data_type in ["content", "log"]:
+        database = client["test"][data_type]
+    else:
+        database = "error"
+    return database
 
 
 if __name__ == '__main__':
