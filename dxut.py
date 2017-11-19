@@ -240,28 +240,6 @@ def stat(when, who, identifier, action, result, info_type):  # 用于统计的�
                 stats.task_start = ut.time_str("full")
             elif result == "finish":
                 stats.task_finish = ut.time_str("full")
-    elif result == "fail":
-        if who == "index page":
-            stats.failed_sum_page += 1
-        elif who == "record":
-            stats.failed_record += 1
-        elif who == "pmid":
-            stats.failed_pmid += 1
-    elif result == "proc":
-        if who == "index page":
-            stats.processed_sum_page += 1
-        elif who == "record":
-            stats.processed_record += 1
-        elif who == "pmid":
-            stats.processed_pmid += 1
-    elif result == "skip":
-        if who == "index page":
-            stats.skipped_sum_page += 1
-        elif who == "record":
-            stats.skipped_record += 1
-        elif who == "pmid":
-            stats.skipped_pmid += 1
-            stats.c_skipped_pmid += 1
 
 
 def get_db(data_type):
