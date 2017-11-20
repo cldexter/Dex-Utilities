@@ -170,7 +170,7 @@ def current_dir():
 
 
 # 时间相关
-def current_time(type="full", delta_min=0):
+def current_time_str(type="full", delta_min=0):
     """获取当前time_str, type:[full,year,date,time]"""
     if type == "full":
         time_format = '%Y-%m-%d %X'
@@ -219,6 +219,7 @@ def debug(who, identifier, action, result, info_type):
     data = {"ctime": when, "who": who, "identifier": identifier, "what": result}
     get_db('debug').insert_one(data)
 
+#
 
 def info(when, who, identifier, action, result, info_type):
     """用于显示"""

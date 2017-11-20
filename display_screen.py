@@ -60,29 +60,24 @@ class Screen:
         self.status_column = 4
         self.status_title_length = 12
         self.status_value_length = 12
+        self.status_box_length = 40
 
     def clean_screen(self):
         os.system("clear")
 
     def title(self, title_list):
-        titles = []
-        values = []
-        for title in title_list:
-            titles.append(title[0])
-            values.append(title[1])
         title_str = "|"
         value_str = "|"
-        for title in titles:
-            if len(title) > self.title_box_length:
-                title = title[0:self.title_box_length - 1]
+        for item in title_list:
+            if len(item[0]) > self.title_box_length:
+                title = item[0][0:self.title_box_length - 1]
             else:
-                title = title.center(self.title_box_length, " ")
+                title = item[0].center(self.title_box_length, " ")
+            if len(item[1]) > self.title_box_length:
+                value = item[1][0:self.title_box_length - 1]
+            else:
+                value = item[1].center(self.title_box_length, " ")
             title_str = title_str + title + "|"
-        for value in values:
-            if len(value) > self.title_box_length:
-                value = value[0:self.title_box_length - 1]
-            else:
-                value = value.center(self.title_box_length, " ")
             value_str = value_str + value + "|"
         title_box_number = len(title_list)
         title_bar_length = title_box_number * (self.title_box_length + 1) + 1
@@ -97,15 +92,13 @@ class Screen:
     def status(self, status_list):
         titles = []
         values = []
+        status_spacers = []
         for status in status_list:
             if len(status[0]) >= self.status_title_length:
                 title = status[0][0:self.status_title_length - 1]
-            else:
-                title = status[0].ljust(self.status_title_length - 1)
             if len(status[1]) >= self.status_value_length:
                 value = status[1][0:self.status_value_length - 1]
-            else:
-                value = status[1].ljust(self.status_value_length - 1)
+            status_spacer = self.status_box_length - len(title) - len(value) - 2
             titles.append(title)
             values.append(value)
         status_rows = int(math.ceil(len(status_list) / self.status_column))
@@ -118,18 +111,18 @@ class Screen:
         k = 0  # 个
         while i < status_rows:
             status_str = ""
-            while j < self.status_column and k < len(status_list):  # 最后一个除外
+            while j =< self.status_column and k < len(status_list):  # 最后一个除外
                 status_str = status_str + \
                     titles[k] + ": " + values[k] + \
                     " " * status_spacer_length
                 k += 1
                 j += 1
-            # print k, j, self.status_column
-            if j == self.status_column:
-                if k < len(status_list):
-                    status_str = status_str + titles[k] + ": " + values[k]
-                    k += 1
-                    j = 1
+            # # print k, j, self.status_column
+            # if j == self.status_column:
+            #     if k < len(status_list):
+            #         status_str = status_str + titles[k] + ": " + values[k]
+            #         k += 1
+            #         j = 1
             print status_str
             i += 1
 
