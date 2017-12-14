@@ -13,10 +13,16 @@ from __future__ import division
 import sys
 import os
 import random
+import math
 import time
 import datetime
 from multiprocessing import Pool
 from colorama import init, Fore, Back, Style
+
+reload(sys)
+sys.setdefaultencoding('utf8')
+
+init(autoreset=True)
 
 dict_agent = [
     "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; AcooBrowser; .NET CLR 1.1.4322; .NET CLR 2.0.50727)",
@@ -107,26 +113,20 @@ dict_header = {
     "Pragma": "max-age=0",
 }
 
-dict_floor_type = {
-    u"高层": "H",
-    u"中层": "M",
-    u"低层": "L"
-}
-
 dict_color_code = {
-    "info":(Back.GREEN + Fore.BLACK),
-    "important":(Back.BLACK + Fore.WHITE),
-    "error":(Back.RED + Fore.LIGHTWHITE_EX),
-    "notice":(Back.YELLOW + Fore.BLACK),
-    "debug":(Back.LIGHTCYAN_EX + Fore.BLACK),
-    "time_stamp":(Back.LIGHTBLACK_EX + Fore.LIGHTWHITE_EX)
+    "info": (Back.GREEN + Fore.BLACK),
+    "important": (Back.BLACK + Fore.WHITE),
+    "error": (Back.RED + Fore.LIGHTWHITE_EX),
+    "notice": (Back.YELLOW + Fore.BLACK),
+    "debug": (Back.LIGHTCYAN_EX + Fore.BLACK),
+    "time_stamp": (Back.LIGHTBLACK_EX + Fore.LIGHTWHITE_EX)
 }
 
 exp_email = "[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"  # 所有email地址
 exp_html = "</?\w+[^>]*>\s?"  # 所有html标签
 
 
-# client = MongoClient('mongodb://localhost:27017/') 
+# client = MongoClient('mongodb://localhost:27017/')
 
 
 # 关于网络
@@ -187,8 +187,10 @@ def current_time_str(type="full", delta_min=0):
 
 def time_str_interval(earlier_time_str, later_time_str, time_unit="hour"):
     """计算两个time_str的间隔,time_unit:[second,minute,hour,day]"""
-    earlier_time_object = datetime.datetime.strptime(earlier_time_str, "%Y-%m-%d %X")
-    later_time_object = datetime.datetime.strptime(later_time_str, "%Y-%m-%d %X")
+    earlier_time_object = datetime.datetime.strptime(
+        earlier_time_str, "%Y-%m-%d %X")
+    later_time_object = datetime.datetime.strptime(
+        later_time_str, "%Y-%m-%d %X")
     duration_delta = later_time_object - earlier_time_object
     duration_in_seconds = int(duration_delta.total_seconds())
     if time_unit == "second":
@@ -203,28 +205,31 @@ def time_str_interval(earlier_time_str, later_time_str, time_unit="hour"):
         return "error"
 
 # 消息相关
+
+
 def msg(who, identifier, action, result, info_type, *args):
     '''集中处理各种信息[log,info,stat,debug]'''
     for fn in args:
         fn(ut.time_str("full"), who, identifier, action, result, info_type)
 
+
 def log(who, identifier, action, result, info_type):
     """记录日志"""
-    data = {"ctime": when, "who": who, "identifier": identifier, "action": action, "result": result, "info_type": info_type}
+    data = {"ctime": when, "who": who, "identifier": identifier,
+            "action": action, "result": result, "info_type": info_type}
     get_db('log').insert_one(data)
 
 
 def debug(who, identifier, action, result, info_type):
     """用于调试"""
-    data = {"ctime": when, "who": who, "identifier": identifier, "what": result}
+    data = {"ctime": when, "who": who,
+            "identifier": identifier, "what": result}
     get_db('debug').insert_one(data)
 
-#
 
 def info(when, who, identifier, action, result, info_type):
     """用于显示"""
     add_new_display(when, who, identifier, action, result, info_type)
-
 
 
 def stat(when, who, identifier, action, result, info_type):  # 用于统计的信息
@@ -244,12 +249,114 @@ def stat(when, who, identifier, action, result, info_type):  # 用于统计的�
 
 
 def get_db(data_type):
-    if data_type in ["content", "log"]:
+    '''用于获取数据库名称'''
+    if data_type in ["content", "log", "debug"]:
         database = client["test"][data_type]
     else:
         database = "error"
     return database
 
 
+def read_data(data_type, data_filter="", record_number=1):
+    '''在data_type数据库中读取符合data_filter条件的record_number个值 data_filter为dict'''
+    records = []
+    for record in get_db(data_type).find(data_filter).limit(record_number):
+        records.append(record)
+    return record
+
+
+def add_data(data_type, data):
+    '''在data_type数据库中插入data或data list，data为dict'''
+    if len(data) > 1:
+        get_db(data_type).insert_many(data)
+    elif len(data) == 1:
+        get_db(data_type).insert_one(data)
+    else:
+        pass
+
+
+def update_data(data_type, data_filter, data):
+    '''在data_type数据库中更新符合data_filter条件的值（data）data_filter和data都是dict'''
+    get_db(data_type).update(data_filter, {"$set": data})
+
+
+def del_data(data_type, data_filter):
+    '''在data_type数据库中删除符合data_filter条件的值 data_filter是dict'''
+    get_db(data_type).delete_many(data_filter)
+
+
+def add_new_display(when, who, identifier, action, result, info_type):
+    print(color_code["time_stamp"] + " [" + when + "] "),
+    print(color_code[info_type] + " [" + info_type + "] "),
+    print who, identifier, action, result
+
+
+def get_window_size():
+    '''获得terminal 窗口大小 rows是高，column是宽'''
+    rows, columns = os.popen('stty size', 'r').read().split()
+    return rows, columns
+
+
+class Screen:
+    def __init__(self, project_name):
+        self.rows = int(os.popen('stty size', 'r').read().split()[0])
+        self.columns = int(os.popen('stty size', 'r').read().split()[1])
+        self.project_name = project_name
+        self.title_box_length = 20
+        self.status_title_length = 12
+        self.status_value_length = 12
+        self.status_box_length = 30
+        # self.status_column = math.floor(self.columns / self.status_box_length)
+        self.status_column = 2
+
+
+    def clean_screen(self):
+        os.system("clear")
+
+
+    def title(self, title_list):
+        title_str = "|"
+        value_str = "|"
+        for item in title_list:
+            if len(item[0]) > self.title_box_length:
+                title = item[0][0:self.title_box_length - 1]
+            else:
+                title = item[0].center(self.title_box_length, " ")
+            if len(item[1]) > self.title_box_length:
+                value = item[1][0:self.title_box_length - 1]
+            else:
+                value = item[1].center(self.title_box_length, " ")
+            title_str = title_str + title + "|"
+            value_str = value_str + value + "|"
+        title_box_number = len(title_list)
+        title_bar_length = title_box_number * (self.title_box_length + 1) + 1
+        title_spacer_l_length = int((self.columns - title_bar_length) / 2)
+        title_spacer_r_length = self.columns - \
+            (title_spacer_l_length + title_bar_length)
+        print " " * title_spacer_l_length + (Back.LIGHTYELLOW_EX + Fore.BLACK) + title_str
+        print (Fore.YELLOW) + "-" * title_spacer_l_length + \
+            value_str + "-" * title_spacer_r_length
+        print " " * title_spacer_l_length + (Fore.YELLOW) + "-" * title_bar_length
+
+
+    def status(self, status_list):
+        status_title = ""
+        status_value = ""
+        for status in status_list:
+            # if len(status)
+            pass
+
+
+    def bar(self, symbol="-"):
+        print (Fore.YELLOW) + symbol * self.columns
+
+
+
+
 if __name__ == '__main__':
-    print time_str_interval("1984-05-07 23:30:00", "1984-05-17 13:32:44")
+    # print time_str_interval("1984-05-07 23:30:00", "1984-05-17 13:32:44")
+    screen = Screen("dexterisherewaiting")
+    screen.clean_screen()
+    screen.title([("file name", "this is a test"),("created date", "2017-07-07")])
+    # screen.status([("12345678901234", "12345678901234"), ("big", "12345678901234"), ("big", "city"), ("big", "12345678901234"), ("big", "city"), ("hello", "people")])
+    screen.bar()

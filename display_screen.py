@@ -56,11 +56,13 @@ class Screen:
         self.rows = int(os.popen('stty size', 'r').read().split()[0])
         self.columns = int(os.popen('stty size', 'r').read().split()[1])
         self.project_name = project_name
-        self.title_box_length = 12
-        self.status_column = 4
+        self.title_box_length = 20
         self.status_title_length = 12
         self.status_value_length = 12
-        self.status_box_length = 40
+        self.status_box_length = 30
+        # self.status_column = math.floor(self.columns / self.status_box_length)
+        self.status_column = 2
+
 
     def clean_screen(self):
         os.system("clear")
@@ -92,37 +94,46 @@ class Screen:
     def status(self, status_list):
         titles = []
         values = []
-        status_spacers = []
+        max_title_length = 0
+        max_value_length = 0
+        status_spacer_lengths = []
         for status in status_list:
-            if len(status[0]) >= self.status_title_length:
+            title_length = len(status[0])
+            value_length = len(status[1])
+            if title_length > max_title_length:
+                max_title_length = title_length
+            if value_length > max_value_length:
+                max_value_length = value_length
+            if title_length >= self.status_title_length:
                 title = status[0][0:self.status_title_length - 1]
-            if len(status[1]) >= self.status_value_length:
+            else:
+                title = status[0]
+            if value_length >= self.status_value_length:
                 value = status[1][0:self.status_value_length - 1]
-            status_spacer = self.status_box_length - len(title) - len(value) - 2
+            else:
+                value = status[1]
+            status_spacer_length = self.status_box_length - len(title) - len(value) - 2
             titles.append(title)
             values.append(value)
+            status_spacer_lengths.append(status_spacer_length)
         status_rows = int(math.ceil(len(status_list) / self.status_column))
-        status_column_spacer = self.status_column - 1
-        status_spacer_length = int((self.columns - ((self.status_title_length +
-                                                     self.status_value_length + 1) * self.status_column)) / status_column_spacer)
+        print status_rows
+        status_column_spacer_number = self.status_column - 1
+        # status_spacer_length = int((self.columns - ((self.status_title_length +
+                                                    #  self.status_value_length + 1) * self.status_column)) / status_column_spacer_number)
         status_str_list = []
-        i = 0  # 行
+        i = 1  # 行
         j = 1  # 列
         k = 0  # 个
-        while i < status_rows:
+        while i <= status_rows:
+            print "i: " + str(i)
             status_str = ""
-            while j =< self.status_column and k < len(status_list):  # 最后一个除外
-                status_str = status_str + \
-                    titles[k] + ": " + values[k] + \
-                    " " * status_spacer_length
+            while j <= self.status_column and k < len(status_list):
+                status_str = status_str + titles[k] + ": " + values[k] + " " * status_spacer_lengths[k]
                 k += 1
                 j += 1
-            # # print k, j, self.status_column
-            # if j == self.status_column:
-            #     if k < len(status_list):
-            #         status_str = status_str + titles[k] + ": " + values[k]
-            #         k += 1
-            #         j = 1
+                print "k: " + str(k)
+                print "j: " + str(j)
             print status_str
             i += 1
 
@@ -136,7 +147,7 @@ if __name__ == '__main__':
     # full_screen_box()
     # time_box()
     screen = Screen("dexterisherewaiting")
-    screen.clean_screen()
-    screen.title([("hello", "world"), ("big", "city")])
+    # screen.clean_screen()
+    screen.title([("file name", "this is a test"),("created date", "2017-07-07")])
     screen.status([("12345678901234", "12345678901234"), ("big", "12345678901234"),
                    ("big", "city"), ("big", "12345678901234"), ("big", "city"), ("hello", "people")])
