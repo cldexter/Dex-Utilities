@@ -4,8 +4,8 @@
 """
 -------------------------------------------------
    File Name: dxut.py
+   Description: 通用模块一次性加载
    Author: Dexter Chen
-   Date：2017-11-14
 -------------------------------------------------
 """
 
@@ -18,12 +18,15 @@ import time
 import datetime
 from multiprocessing import Pool
 from colorama import init, Fore, Back, Style
+from prettytable import PrettyTable
+
 
 reload(sys)
 sys.setdefaultencoding('utf8')
 
 init(autoreset=True)
 
+# 用于浏览器模拟agent
 dict_agent = [
     "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; AcooBrowser; .NET CLR 1.1.4322; .NET CLR 2.0.50727)",
     "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0; Acoo Browser; SLCC1; .NET CLR 2.0.50727; Media Center PC 5.0; .NET CLR 3.0.04506)",
@@ -101,6 +104,7 @@ dict_agent = [
     'Mozilla/4.0 (compatible; MSIE 6.0; ) Opera/UCWEB7.0.2.37/28/999'
 ]
 
+# 使用agent构建header
 dict_header = {
     'User-Agent': "",
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -113,19 +117,21 @@ dict_header = {
     "Pragma": "max-age=0",
 }
 
+# 颜色代码
 dict_color_code = {
     "info": (Back.GREEN + Fore.BLACK),
     "important": (Back.BLACK + Fore.WHITE),
     "error": (Back.RED + Fore.LIGHTWHITE_EX),
     "notice": (Back.YELLOW + Fore.BLACK),
     "debug": (Back.LIGHTCYAN_EX + Fore.BLACK),
-    "time_stamp": (Back.LIGHTBLACK_EX + Fore.LIGHTWHITE_EX)
+    "time_stamp": (Back.LIGHTBLACK_EX + Fore.LIGHTWHITE_EX),
+    "title_title": (Back.BLACK + Fore.LIGHTWHITE_EX)
 }
 
 exp_email = "[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"  # 所有email地址
 exp_html = "</?\w+[^>]*>\s?"  # 所有html标签
 
-
+# 连接数据库将以下注释掉
 # client = MongoClient('mongodb://localhost:27017/')
 
 
@@ -138,10 +144,10 @@ def random_header():
 # 关于任务
 
 
-def multi_tasking(process_number, function_name, list_varible):
+def multi_tasking(process_number, function_name, varible_list):
     """最简单的多线程任务"""
     pool = Pool(process_number)  # 实例化进程池
-    pool.map(function_name, list_varible)
+    pool.map(function_name, varible_list)
     pool.close()  # 关闭进程池
     pool.join()  # 等待所有进程结束
 
@@ -297,66 +303,149 @@ def get_window_size():
     return rows, columns
 
 
-class Screen:
-    def __init__(self, project_name):
+class Widgets:
+    def __init__(self):
         self.rows = int(os.popen('stty size', 'r').read().split()[0])
         self.columns = int(os.popen('stty size', 'r').read().split()[1])
-        self.project_name = project_name
-        self.title_box_length = 20
-        self.status_title_length = 12
-        self.status_value_length = 12
-        self.status_box_length = 30
-        # self.status_column = math.floor(self.columns / self.status_box_length)
-        self.status_column = 2
-
+        self.status_box_length = 20
+        self.progress_bar_length = 20
+        self.title_length = 8
+        self.info_zone_length = 20
 
     def clean_screen(self):
         os.system("clear")
 
+    def trim_text(self, text, max_len, text_alignment="left"):  
+        '''把所有文本都整理到同样长度'''
+        if len(text) < max_len and text_alignment == "middle":
+            text = text.center(max_len, " ")
+        elif len(text) < max_len and text_alignment == "left":
+            text = text.ljust(max_len, " ")
+        elif len(text) >= max_len:
+            text = text[0:max_len]
+        return text
 
-    def title(self, title_list):
-        title_str = "|"
-        value_str = "|"
+    def status_box(self, title_list, alignment="left"):
+        status_title_str = "|"  # 初始状态
+        status_value_str = "|"
         for item in title_list:
-            if len(item[0]) > self.title_box_length:
-                title = item[0][0:self.title_box_length - 1]
-            else:
-                title = item[0].center(self.title_box_length, " ")
-            if len(item[1]) > self.title_box_length:
-                value = item[1][0:self.title_box_length - 1]
-            else:
-                value = item[1].center(self.title_box_length, " ")
-            title_str = title_str + title + "|"
-            value_str = value_str + value + "|"
-        title_box_number = len(title_list)
-        title_bar_length = title_box_number * (self.title_box_length + 1) + 1
-        title_spacer_l_length = int((self.columns - title_bar_length) / 2)
-        title_spacer_r_length = self.columns - \
-            (title_spacer_l_length + title_bar_length)
-        print " " * title_spacer_l_length + (Back.LIGHTYELLOW_EX + Fore.BLACK) + title_str
-        print (Fore.YELLOW) + "-" * title_spacer_l_length + \
-            value_str + "-" * title_spacer_r_length
-        print " " * title_spacer_l_length + (Fore.YELLOW) + "-" * title_bar_length
+            title = self.trim_text(item[0], self.status_box_length, "middle")
+            value = self.trim_text(item[1], self.status_box_length, "middle")
+            status_title_str = status_title_str + title + "|"
+            status_value_str = status_value_str + value + "|"
+        status_box_number = len(title_list)
+        title_bar_length = status_box_number * (self.status_box_length + 1) + 1
+        if alignment == "middle":
+            title_spacer_l_length = int((self.columns - title_bar_length) / 2)
+            title_spacer_r_length = self.columns - \
+                (title_spacer_l_length + title_bar_length)
+            print " " * title_spacer_l_length + dict_color_code['title_title'] + status_title_str
+            print "-" * title_spacer_l_length + status_value_str + "-" * title_spacer_r_length
+            print " " * title_spacer_l_length + "+" + "-" * self.status_box_length + "+" + "-" * self.status_box_length + "+"
+        elif alignment == "left":
+            print dict_color_code['title_title'] + status_title_str
+            print status_value_str
+            print "+" + "-" * self.status_box_length + "+" + "-" * self.status_box_length + "+"
 
+    def table(self, table_title, table_content):
+        '''table_title是list，table_content是list的list'''
+        table = PrettyTable(table_title)
+        for item in table_content:
+            table.add_row(item)
+        print table
 
-    def status(self, status_list):
-        status_title = ""
-        status_value = ""
-        for status in status_list:
-            # if len(status)
-            pass
-
+    def caption(self, caption, symbol="-"):
+        caption_len = len(caption)
+        caption_spacer_l_length = int((self.columns - caption_len) / 2) - 2
+        caption_spacer_r_length = self.columns - \
+            (caption_spacer_l_length + caption_len) - 4
+        print symbol * caption_spacer_l_length + "| " + caption + " |" + symbol * caption_spacer_r_length + "\n"
 
     def bar(self, symbol="-"):
         print (Fore.YELLOW) + symbol * self.columns
+
+    def options(self, question, option_list, value_list):
+        '''question是str，option_list是问题集, value_list是和选项对应的返回值'''
+        max_len = 0
+        for option in option_list:
+            if len(option) > max_len:
+                max_len = len(option)
+        if len(question) > max_len:
+            max_len = len(question)
+        print dict_color_code['title_title'] + "|" + self.trim_text(question, max_len + 2, "middle") + "|"
+        i = 1
+        for i in range(1, len(option_list) + 1):
+            print "|" + str(i) + "." + self.trim_text(option_list[i-1], max_len) + "|"
+        print "+" + "-" * (max_len + 2) + "+"
+        while True:
+            choice = int(raw_input(">>> Please choose:"))
+            if choice > len(option_list) + 1 or choice < 1:
+                print "Option error, Choose again"
+            else:
+                return value_list[choice - 1]
+                break
+
+
+    def scale_list(self, title, value_list, step_interval):
+        '''value是int列表，step_interval是每档的数值'''
+        scale_symbol = ("▁", "▂", "▃", "▄", "▅", "▆", "▇", "█")
+        scale_symbol_list = ""
+        for value in value_list:
+            scale_symbol_number = int(round(value / step_interval))
+            if scale_symbol_number <= 7 and scale_symbol_number >= 1:
+                scale_symbol_list = scale_symbol_list + \
+                    scale_symbol[scale_symbol_number]
+            elif scale_symbol_number > 7:
+                scale_symbol_list = scale_symbol_list + scale_symbol[7]
+            elif scale_symbol_number < 1:
+                scale_symbol_list = scale_symbol_list + scale_symbol[0]
+        print self.trim_text(title, self.title_length) + scale_symbol_list
+
+
+    def progress_bar(self, title, value, max_value):
+        '''value是int，max_value是最大int'''
+        progress_bar_symbol = "■"
+        empty_bar_symbol = "□"
+        progress_bar_symbol_number = int(
+            round((value / max_value) * self.progress_bar_length))
+        # print progress_bar_symbol_number
+        empty_bar_symbol_number = self.progress_bar_length - progress_bar_symbol_number
+        progress_bar = progress_bar_symbol * progress_bar_symbol_number + \
+            empty_bar_symbol * empty_bar_symbol_number
+        print self.trim_text(title, self.title_length) + progress_bar + " [" + str(value) + "/" + str(max_value) + "]"
+
+
+    def info_zone(self, info_list):
+        '''info_list是消息队列'''
+        print dict_color_code['title_title'] + "|" + "Information" + "|"
+
+def display(refresh_interval):
+    last_time = "2000-10-14 00:00:00"
+    components = Widgets()
+    while True:
+        if time_str_interval(last_time, current_time_str("full"), "second") > refresh_interval:
+            # print time_str_interval(last_time, current_time_str("full"), "second")
+            last_time = current_time_str("full")
+            
+            components.clean_screen()
+            components.caption("Test of this", "_")
+            components.status_box([("file name", "this is a test"),
+                       ("created date", current_time_str())])
 
 
 
 
 if __name__ == '__main__':
     # print time_str_interval("1984-05-07 23:30:00", "1984-05-17 13:32:44")
-    screen = Screen("dexterisherewaiting")
-    screen.clean_screen()
-    screen.title([("file name", "this is a test"),("created date", "2017-07-07")])
-    # screen.status([("12345678901234", "12345678901234"), ("big", "12345678901234"), ("big", "city"), ("big", "12345678901234"), ("big", "city"), ("hello", "people")])
-    screen.bar()
+    # screen = Widgets()
+    # screen.clean_screen()
+    # screen.caption("Test of this", "_")
+    # screen.status_box([("file name", "this is a test"),
+    #                    ("created date", current_time_str())])
+    # screen.table(["dexter", "egg"], [
+    #              ["101", '102'], ['111', '99'], ['90', '80']])
+    # screen.scale_list("value:", [3, 2, 7, 5, 3, 3, 4, 6, 6, 1, 2], 1)
+    # screen.progress_bar("score:", 20, 100)
+    # # print screen.options("What's your name?",["dexter", "dex", "deedee"], ["good","ok","bad"])
+    # screen.info_zone(['test'])
+    display(5)
